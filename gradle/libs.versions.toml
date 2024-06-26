@@ -1,0 +1,14 @@
+[versions]
+ktor="2.3.12"
+
+[libraries]
+kotlinx-cli = "org.jetbrains.kotlinx:kotlinx-cli:0.3.6"
+kotlinx-serialization-core = "org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.0"
+
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-contentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-xml = { module = "io.ktor:ktor-serialization-kotlinx-xml", version.ref = "ktor" }
+ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+
+kotlinxSerializationCsv = "de.brudaswen.kotlinx.serialization:kotlinx-serialization-csv:2.0.0"

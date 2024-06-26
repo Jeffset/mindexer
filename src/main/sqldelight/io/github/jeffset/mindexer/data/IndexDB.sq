@@ -1,10 +1,12 @@
 import kotlin.Boolean;
+import kotlin.collections.List;
+import kotlin.String;
 
 CREATE TABLE IF NOT EXISTS Artifacts (
     group_id TEXT NOT NULL,
     artifact_id TEXT NOT NULL,
     version TEXT NOT NULL,
-    supported_kmp_platforms TEXT,
+    supported_kmp_platforms TEXT AS List<String>,
     is_latest INTEGER AS Boolean,
     PRIMARY KEY (group_id, artifact_id, version)
 );

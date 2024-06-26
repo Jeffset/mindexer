@@ -20,7 +20,7 @@ fun <T> Flow<T>.chunked(
         }
     }
 
-    // Add the remaining
+    // Emit the remaining
     mutex.withLock {
         if (buffer.isNotEmpty()) {
             send(buffer.toList())

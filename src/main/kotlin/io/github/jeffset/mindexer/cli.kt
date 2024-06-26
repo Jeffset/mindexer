@@ -1,23 +1,17 @@
 package io.github.jeffset.mindexer
 
 import io.github.jeffset.mindexer.allowlist.AllowlistFileImpl
-import io.github.jeffset.mindexer.core.ArtifactResolutionEvent
-import io.github.jeffset.mindexer.core.IndexingOptions
-import io.github.jeffset.mindexer.core.index
-import io.github.jeffset.mindexer.data.createDatabase
-import io.github.jeffset.mindexer.model.Artifact
+import io.github.jeffset.mindexer.core.Indexer
+import io.github.jeffset.mindexer.core.ResolvingOptions
+import io.github.jeffset.mindexer.data.openDatabase
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.default
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.launch
+import kotlinx.cli.required
 import kotlinx.coroutines.runBlocking
 import java.io.File
-import java.util.concurrent.Executors
 import kotlin.system.exitProcess
 
 @OptIn(ExperimentalCli::class)
@@ -32,65 +26,30 @@ fun run(args: Array<String>) {
         name = "index",
         actionDescription = "Indexes the remote repository",
     ) {
-        val artifactAllowlistFile by option(ArgType.String, fullName = "artifact-allowlist-file")
-        val indexKmpAllVersions by option(ArgType.Boolean, fullName = "index-kmp-all-versions").default(false)
+        val artifactAllowlistFile by option(
+            ArgType.String,
+            fullName = "artifact-allowlist-file",
+            description = """
+                Path to the .csv file with the `namespace,name` header
+            """.trimIndent()
+        ).required()
+
+        val indexKmpAllVersions by option(ArgType.Boolean, fullName = "index-kmp-all-versions",
+            description = """
+                Whether to resolve KMP platforms for all versions, not only the latest.
+                Can significantly increase indexing time.
+            """.trimIndent()
+        ).default(false)
 
         override fun execute() {
-            val allowlist = AllowlistFileImpl(File(artifactAllowlistFile!!))
-            val options = IndexingOptions(
-                indexKmpLatestOnly = !indexKmpAllVersions,
-            )
             runBlocking {
-                val db = createDatabase(dropExisting = true)
-                val queries = db.indexDBQueries
-                val flow = MutableSharedFlow<ArtifactResolutionEvent>()
-                launch {
-                    index(
-                        allowlist = allowlist,
-                        into = flow,
-                        options = options,
-                    )
-                }
-                val dbExecutor = Executors.newSingleThreadExecutor()
-                val dbDispatcher = dbExecutor.asCoroutineDispatcher()
-                flow.takeWhile { it != ArtifactResolutionEvent.ResolutionFinished }
-                    .chunked(maxCount = 64)  // Enhance DB performance
-                    .collect { events ->
-                        val toAdd = arrayListOf<Artifact>()
-                        for (event in events) {
-                            when(event) {
-                                is ArtifactResolutionEvent.Resolved -> {
-                                    if (verbose) {
-                                        println("Resolved: ${event.artifact}")
-                                    }
-                                    toAdd.add(event.artifact)
-                                }
-                                is ArtifactResolutionEvent.Unresolved -> {
-                                    System.err.println("Unresolved: ${event.groupId}:${event.artifactName}")
-                                }
-                                ArtifactResolutionEvent.ResolutionFinished -> throw AssertionError()
-                            }
-                        }
-
-                        if (toAdd.isNotEmpty()) {
-                            launch(dbDispatcher) {
-                                queries.transaction {
-                                    toAdd.forEach { artifact ->
-                                        queries.addArtifact(
-                                            group_id = artifact.groupId,
-                                            artifact_id = artifact.artifactId,
-                                            version = artifact.version,
-                                            supported_kmp_platforms = artifact.supportedPlatforms?.joinToString(","),
-                                            is_latest = artifact.isLatestVersion,
-                                        )
-                                    }
-                                    println("Added ${toAdd.size} entries to DB")
-                                }
-                            }
-                        }
-                        events.asSequence().filterIsInstance<ArtifactResolutionEvent.Unresolved>()
-                    }
-                dbExecutor.shutdown()
+                Indexer(
+                    allowlist = AllowlistFileImpl(File(artifactAllowlistFile)),
+                    resolveOptions = ResolvingOptions(
+                        resolveKmpLatestOnly = !indexKmpAllVersions,
+                    ),
+                    logger = if (verbose) VerboseLogger else SilentLogger,
+                ).index()
             }
         }
     }
@@ -99,15 +58,21 @@ fun run(args: Array<String>) {
         name = "search",
         actionDescription = "Searches Maven Central using the built index",
     ) {
-        val text by argument(ArgType.String, fullName = "search-text")
-        val displayFullNativeTargets by option(ArgType.Boolean, fullName = "display-full-native-platforms")
-            .default(false)
+        val text by argument(ArgType.String, fullName = "search-text", description = "Search prompt")
+
+        val displayFullNativeTargets by option(
+            ArgType.Boolean,
+            fullName = "display-full-native-platforms",
+            description = """
+                Whether to display the complete list of available native targets, instead of just "native".
+            """.trimIndent()
+        ).default(false)
 
         override fun execute() {
-            val db = createDatabase(dropExisting = false)
+            val db = openDatabase(dropExisting = false)
             val results = db.indexDBQueries.searchRanked(text).executeAsList()
             if (results.isEmpty()) {
-                println("Not artifacts match the '$text' prompt")
+                println("No artifacts match the '$text' prompt")
                 exitProcess(1)
             } else {
                 println("Found the matching artifacts:")
@@ -116,7 +81,6 @@ fun run(args: Array<String>) {
                 println("$index) ${result.group_id}:${result.artifact_id}:${result.version}")
                 if (result.supported_kmp_platforms != null) {
                     val formatted = result.supported_kmp_platforms
-                        .splitToSequence(',')
                         .run {
                             if (!displayFullNativeTargets) {
                                 // Remove native platform info

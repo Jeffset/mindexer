@@ -3,7 +3,7 @@ package io.github.jeffset.mindexer.core
 import io.github.jeffset.mindexer.Logger
 import io.github.jeffset.mindexer.allowlist.Allowlist
 import io.github.jeffset.mindexer.chunked
-import io.github.jeffset.mindexer.data.openDatabase
+import io.github.jeffset.mindexer.data.IndexDB
 import io.github.jeffset.mindexer.model.Artifact
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.coroutineScope
@@ -15,6 +15,7 @@ import java.util.concurrent.Executors
 class Indexer(
     allowlist: Allowlist,
     resolveOptions: ResolvingOptions,
+    private val database: IndexDB,
     private val logger: Logger,
 ) {
     private val resolveEvents = MutableSharedFlow<ArtifactResolutionEvent>()
@@ -31,10 +32,10 @@ class Indexer(
     suspend fun index() {
         check(!dbExecutor.isShutdown) { "single-use object" }
 
-        val db = openDatabase(dropExisting = true)
         val dbDispatcher = dbExecutor.asCoroutineDispatcher()
         coroutineScope {
             launch {
+                database.indexDBQueries.truncate()
                 resolver.resolveAll()
             }
             resolveEvents
@@ -56,9 +57,9 @@ class Indexer(
                     }
                     if (resolvedArtifacts.isNotEmpty()) {
                         launch(dbDispatcher) {
-                            db.indexDBQueries.transaction {
+                            database.indexDBQueries.transaction {
                                 resolvedArtifacts.forEach { artifact ->
-                                    db.indexDBQueries.addArtifact(
+                                    database.indexDBQueries.addArtifact(
                                         group_id = artifact.groupId,
                                         artifact_id = artifact.artifactId,
                                         version = artifact.version,

@@ -29,3 +29,9 @@ ORDER BY
     rank DESC,
     version DESC,
     artifact_id ASC;
+
+artifactsCount:
+SELECT COUNT(*) FROM Artifacts;
+
+truncate:
+DELETE FROM Artifacts;

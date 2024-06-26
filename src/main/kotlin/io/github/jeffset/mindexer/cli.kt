@@ -4,6 +4,7 @@ import io.github.jeffset.mindexer.allowlist.AllowlistFileImpl
 import io.github.jeffset.mindexer.core.Indexer
 import io.github.jeffset.mindexer.core.ResolvingOptions
 import io.github.jeffset.mindexer.data.openDatabase
+import io.github.jeffset.mindexer.ui.runUi
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
@@ -24,7 +25,7 @@ fun run(args: Array<String>) {
 
     class IndexCommand : Subcommand(
         name = "index",
-        actionDescription = "Indexes the remote repository",
+        actionDescription = "Indexes the remote repository based on allowlist",
     ) {
         val artifactAllowlistFile by option(
             ArgType.String,
@@ -48,6 +49,7 @@ fun run(args: Array<String>) {
                     resolveOptions = ResolvingOptions(
                         resolveKmpLatestOnly = !indexKmpAllVersions,
                     ),
+                    database = openDatabase(dropExisting = true),
                     logger = if (verbose) VerboseLogger else SilentLogger,
                 ).index()
             }
@@ -101,8 +103,7 @@ fun run(args: Array<String>) {
     when(val cmd = result.commandName) {
         "index", "search" -> Unit  // Already executed
         "mindexer" -> {
-            // Run GUI here
-            TODO("Not yet implemented")
+            runUi()
         }
         else -> throw AssertionError("Handle command $cmd properly")
     }

@@ -1,15 +1,20 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
 plugins {
-    kotlin("jvm") version "2.0.0"
-    kotlin("plugin.serialization") version "2.0.0"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.compilerPlugin.compose)
+    alias(libs.plugins.kotlin.compilerPlugin.serialization)
     alias(libs.plugins.sqldelight)
-    application
 }
 
 group = "io.github.jeffset"
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
+    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+    google()
 }
 
 dependencies {
@@ -24,6 +29,9 @@ dependencies {
     implementation(libs.kotlinxSerializationCsv)
 
     implementation(libs.sqldelight.sqlite)
+    implementation(libs.sqldelight.coroutines)
+
+    implementation(compose.desktop.currentOs)
 
     runtimeOnly(libs.slf4j.nop)
 
@@ -46,6 +54,15 @@ sqldelight {
     }
 }
 
-application {
-    mainClass = "io.github.jeffset.mindexer.Main"
+compose.desktop {
+    application {
+        mainClass = "io.github.jeffset.mindexer.Main"
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            packageName = "mindexer"
+            packageVersion = version.toString()
+        }
+    }
 }
+

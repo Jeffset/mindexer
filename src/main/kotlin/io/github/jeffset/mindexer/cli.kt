@@ -33,11 +33,12 @@ fun run(args: Array<String>) {
         actionDescription = "Indexes the remote repository",
     ) {
         val artifactAllowlistFile by option(ArgType.String, fullName = "artifact-allowlist-file")
+        val indexKmpAllVersions by option(ArgType.Boolean, fullName = "index-kmp-all-versions").default(false)
 
         override fun execute() {
             val allowlist = AllowlistFileImpl(File(artifactAllowlistFile!!))
             val options = IndexingOptions(
-                indexKmpLatestOnly = true,
+                indexKmpLatestOnly = !indexKmpAllVersions,
             )
             runBlocking {
                 val db = createDatabase(dropExisting = true)
@@ -99,6 +100,8 @@ fun run(args: Array<String>) {
         actionDescription = "Searches Maven Central using the built index",
     ) {
         val text by argument(ArgType.String, fullName = "search-text")
+        val displayFullNativeTargets by option(ArgType.Boolean, fullName = "display-full-native-platforms")
+            .default(false)
 
         override fun execute() {
             val db = createDatabase(dropExisting = false)
@@ -109,13 +112,17 @@ fun run(args: Array<String>) {
             } else {
                 println("Found the matching artifacts:")
             }
-            for (result in results) {
-                println("- ${result.group_id}:${result.artifact_id}:${result.version}")
+            results.forEachIndexed { index, result ->
+                println("$index) ${result.group_id}:${result.artifact_id}:${result.version}")
                 if (result.supported_kmp_platforms != null) {
                     val formatted = result.supported_kmp_platforms
                         .splitToSequence(',')
-                        .map { it.substringBefore(':') }
-                        .distinct()
+                        .run {
+                            if (!displayFullNativeTargets) {
+                                // Remove native platform info
+                                map { it.substringBefore(':') }.distinct()
+                            } else this
+                        }
                         .sorted()
                         .joinToString(", ", prefix = "\t KMP: ")
                     println(formatted)

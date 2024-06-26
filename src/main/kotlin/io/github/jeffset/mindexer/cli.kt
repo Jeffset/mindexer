@@ -78,7 +78,7 @@ fun run(args: Array<String>) {
 
         override fun execute() {
             val db = createDatabase(dropExisting = false)
-            val results = db.indexDBQueries.searchByArtifactId(text).executeAsList()
+            val results = db.indexDBQueries.searchRanked(text).executeAsList()
             if (results.isEmpty()) {
                 println("Not artifacts match the '$text' prompt")
                 exitProcess(1)

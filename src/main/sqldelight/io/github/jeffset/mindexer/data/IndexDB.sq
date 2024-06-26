@@ -1,16 +1,19 @@
+import kotlin.Boolean;
+
 CREATE TABLE IF NOT EXISTS Artifacts (
     group_id TEXT NOT NULL,
     artifact_id TEXT NOT NULL,
     version TEXT NOT NULL,
     supported_kmp_platforms TEXT,
+    is_latest INTEGER AS Boolean,
     PRIMARY KEY (group_id, artifact_id, version)
 );
 
 CREATE INDEX IF NOT EXISTS index_db_artifact_id ON Artifacts(artifact_id);
 
 addArtifact:
-INSERT INTO Artifacts(group_id, artifact_id, version, supported_kmp_platforms)
-VALUES (?, ?, ?, ?);
+INSERT INTO Artifacts(group_id, artifact_id, version, supported_kmp_platforms, is_latest)
+VALUES (?, ?, ?, ?, ?);
 
 searchRanked:
 SELECT *,
@@ -19,7 +22,8 @@ SELECT *,
        -length(artifact_id)                     -- 3) shorter matched strings rank higher,
        -length(group_id)) AS rank               --    as the "matched ratio" is higher.
 FROM Artifacts
-WHERE rank > 0
+WHERE rank > 0 AND is_latest
 ORDER BY
     rank DESC,
+    version DESC,
     artifact_id ASC;

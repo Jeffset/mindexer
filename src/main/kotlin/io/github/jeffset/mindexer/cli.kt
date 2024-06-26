@@ -2,20 +2,22 @@ package io.github.jeffset.mindexer
 
 import io.github.jeffset.mindexer.allowlist.AllowlistFileImpl
 import io.github.jeffset.mindexer.core.ArtifactResolutionEvent
+import io.github.jeffset.mindexer.core.IndexingOptions
 import io.github.jeffset.mindexer.core.index
 import io.github.jeffset.mindexer.data.createDatabase
+import io.github.jeffset.mindexer.model.Artifact
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.default
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.Executors
 import kotlin.system.exitProcess
 
 @OptIn(ExperimentalCli::class)
@@ -34,6 +36,9 @@ fun run(args: Array<String>) {
 
         override fun execute() {
             val allowlist = AllowlistFileImpl(File(artifactAllowlistFile!!))
+            val options = IndexingOptions(
+                indexKmpLatestOnly = true,
+            )
             runBlocking {
                 val db = createDatabase(dropExisting = true)
                 val queries = db.indexDBQueries
@@ -42,30 +47,49 @@ fun run(args: Array<String>) {
                     index(
                         allowlist = allowlist,
                         into = flow,
+                        options = options,
                     )
                 }
-                flow.takeWhile { it != ArtifactResolutionEvent.ResolutionFinished }.collect { event ->
-                    when(event) {
-                        is ArtifactResolutionEvent.Resolved -> {
-                            if (verbose) {
-                                println("Resolved: ${event.artifact}")
-                            }
-                            // NOTE: We do not use Dispatchers.IO here as it is already used for network.
-                            withContext(Dispatchers.Default) {
-                                queries.addArtifact(
-                                    group_id = event.artifact.groupId,
-                                    artifact_id = event.artifact.artifactId,
-                                    version = event.artifact.version,
-                                    supported_kmp_platforms = event.artifact.supportedPlatforms?.joinToString(",")
-                                )
+                val dbExecutor = Executors.newSingleThreadExecutor()
+                val dbDispatcher = dbExecutor.asCoroutineDispatcher()
+                flow.takeWhile { it != ArtifactResolutionEvent.ResolutionFinished }
+                    .chunked(maxCount = 64)  // Enhance DB performance
+                    .collect { events ->
+                        val toAdd = arrayListOf<Artifact>()
+                        for (event in events) {
+                            when(event) {
+                                is ArtifactResolutionEvent.Resolved -> {
+                                    if (verbose) {
+                                        println("Resolved: ${event.artifact}")
+                                    }
+                                    toAdd.add(event.artifact)
+                                }
+                                is ArtifactResolutionEvent.Unresolved -> {
+                                    System.err.println("Unresolved: ${event.groupId}:${event.artifactName}")
+                                }
+                                ArtifactResolutionEvent.ResolutionFinished -> throw AssertionError()
                             }
                         }
-                        is ArtifactResolutionEvent.Unresolved -> {
-                            System.err.println("Unresolved: ${event.groupId}:${event.artifactName}")
+
+                        if (toAdd.isNotEmpty()) {
+                            launch(dbDispatcher) {
+                                queries.transaction {
+                                    toAdd.forEach { artifact ->
+                                        queries.addArtifact(
+                                            group_id = artifact.groupId,
+                                            artifact_id = artifact.artifactId,
+                                            version = artifact.version,
+                                            supported_kmp_platforms = artifact.supportedPlatforms?.joinToString(","),
+                                            is_latest = artifact.isLatestVersion,
+                                        )
+                                    }
+                                    println("Added ${toAdd.size} entries to DB")
+                                }
+                            }
                         }
-                        ArtifactResolutionEvent.ResolutionFinished -> throw AssertionError()
+                        events.asSequence().filterIsInstance<ArtifactResolutionEvent.Unresolved>()
                     }
-                }
+                dbExecutor.shutdown()
             }
         }
     }

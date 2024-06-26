@@ -22,6 +22,11 @@ data class Artifact(
     val version: String,
 
     /**
+     * Whether the version is the latest available.
+     */
+    val isLatestVersion: Boolean,
+
+    /**
      * Supported platforms in terms of KMP. `null` if the artifact is not KMP
      *
      * Examples:

@@ -15,8 +15,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import nl.adaptivity.xmlutil.serialization.XmlChildrenName
 import nl.adaptivity.xmlutil.serialization.XmlElement
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
+import nl.adaptivity.xmlutil.serialization.XmlValue
 
 sealed interface ArtifactResolutionEvent {
     data class Resolved(
@@ -31,8 +33,13 @@ sealed interface ArtifactResolutionEvent {
     data object ResolutionFinished : ArtifactResolutionEvent
 }
 
+class IndexingOptions(
+    val indexKmpLatestOnly: Boolean,
+)
+
 suspend fun index(
     allowlist: Allowlist,
+    options: IndexingOptions,
     // TODO: Maybe simple SendChannel would be enough here?
     into: MutableSharedFlow<ArtifactResolutionEvent>,
 ) {
@@ -55,7 +62,7 @@ suspend fun index(
                 )
                 json(
                     json = gradleJsonFormat,
-                    // TODO: Yeah, sometimes .module files have this metadata
+                    // NOTE: Yeah, sometimes .module files have this metadata
                     contentType = ContentType("application", "octet-stream")
                 )
             }
@@ -68,6 +75,7 @@ suspend fun index(
                             is Allowlist.AllowlistEntry.Artifact -> {
                                 launch {
                                     resolve(
+                                        options = options,
                                         client = client,
                                         groupId = groupId,
                                         artifactName = allowlistEntry.name,
@@ -86,6 +94,7 @@ suspend fun index(
 }
 
 suspend fun resolve(
+    options: IndexingOptions,
     client: HttpClient,
     groupId: String,
     artifactName: String,
@@ -111,51 +120,62 @@ suspend fun resolve(
         Artifact(
             groupId = metadata.groupId,
             artifactId = metadata.artifactId,
-            version = version.value,
+            version = version,
             supportedPlatforms = null,
+            isLatestVersion = version == metadata.versioning.latest,
         )
     }
 
-    coroutineScope {
-        for (artifact in artifacts) {
-            launch {
-                val moduleUrl = gradleModuleUrlFor(
-                    groupId = groupId,
-                    artifactName = artifactName,
-                    version = artifact.version,
-                )
-                val moduleResponse = client.get(moduleUrl)
-                if (response.status == HttpStatusCode.NotFound) {
-                    // Certainly not KMP
-                    into.emit(ArtifactResolutionEvent.Resolved(artifact))
-                } else {
-                    val gradleModule = moduleResponse.body<GradleModule>()
-                    val platforms = buildSet {
-                        for (variant in gradleModule.variants) {
-                            // Just record any mention of the platform assuming there's a usable artifact for that
-                            val platform = variant.attributes["org.jetbrains.kotlin.platform.type"] ?: continue
-                            if (platform == "native") {
-                                val target = checkNotNull(variant.attributes["org.jetbrains.kotlin.native.target"]) {
-                                    "Inconsistent metadata: missing `org.jetbrains.kotlin.native.target` attribute for native"
-                                }
-                                add("native:$target")
-                            } else {
-                                add(platform)
-                            }
-                        }
+    for (artifact in artifacts) {
+        if (!options.indexKmpLatestOnly || artifact.isLatestVersion) {
+            resolveKmpAware(
+                client = client, artifact = artifact, into = into,
+            )
+        } else {
+            into.emit(ArtifactResolutionEvent.Resolved(artifact))
+        }
+    }
+}
+
+private suspend fun resolveKmpAware(
+    client: HttpClient,
+    artifact: Artifact,
+    into: MutableSharedFlow<ArtifactResolutionEvent>,
+) {
+    val moduleUrl = gradleModuleUrlFor(
+        groupId = artifact.groupId,
+        artifactName = artifact.artifactId,
+        version = artifact.version,
+    )
+    val moduleResponse = client.get(moduleUrl)
+    if (moduleResponse.status == HttpStatusCode.NotFound) {
+        // Certainly not KMP
+        into.emit(ArtifactResolutionEvent.Resolved(artifact))
+    } else {
+        val gradleModule = moduleResponse.body<GradleModule>()
+        val platforms = buildSet {
+            for (variant in gradleModule.variants) {
+                // Just record any mention of the platform assuming there's a usable artifact for that
+                val platform = variant.attributes["org.jetbrains.kotlin.platform.type"] ?: continue
+                if (platform == "native") {
+                    val target = checkNotNull(variant.attributes["org.jetbrains.kotlin.native.target"]) {
+                        "Inconsistent metadata: missing `org.jetbrains.kotlin.native.target` attribute for native"
                     }
-                    into.emit(
-                        ArtifactResolutionEvent.Resolved(
-                            if (platforms.isEmpty()) {
-                                artifact
-                            } else {
-                                artifact.copy(supportedPlatforms = platforms)
-                            }
-                        )
-                    )
+                    add("native:$target")
+                } else {
+                    add(platform)
                 }
             }
         }
+        into.emit(
+            ArtifactResolutionEvent.Resolved(
+                if (platforms.isEmpty()) {
+                    artifact
+                } else {
+                    artifact.copy(supportedPlatforms = platforms)
+                }
+            )
+        )
     }
 }
 
@@ -212,15 +232,15 @@ private data class MavenMetadata(
         val release: String,
         @XmlElement(true)
         @XmlSerialName("versions")
-        val versions: List<Version>,
+        @XmlChildrenName("version")
+        val versions: List<String>,
         @XmlElement(true)
         val lastUpdated: String,
     )
 
     @Serializable
     data class Version(
-        @XmlSerialName("version")
-        @XmlElement(true)
+        @XmlValue
         val value: String,
     )
 }

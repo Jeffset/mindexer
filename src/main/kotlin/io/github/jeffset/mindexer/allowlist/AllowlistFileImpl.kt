@@ -27,7 +27,7 @@ class AllowlistFileImpl(
             throw IllegalStateException("Invalid CSV file: $allowlistFile", e)
         }
 
-        allowed = entries.groupBy(
+        allowed = entries.distinct().groupBy(
             keySelector = AllowlistEntry::namespace,
             valueTransform = {
                 when(val name = it.name) {

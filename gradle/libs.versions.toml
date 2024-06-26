@@ -1,5 +1,6 @@
 [versions]
-ktor="2.3.12"
+ktor = "2.3.12"
+sqldelight = "2.0.2"
 
 [libraries]
 kotlinx-cli = "org.jetbrains.kotlinx:kotlinx-cli:0.3.6"
@@ -12,3 +13,10 @@ ktor-serialization-xml = { module = "io.ktor:ktor-serialization-kotlinx-xml", ve
 ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 
 kotlinxSerializationCsv = "de.brudaswen.kotlinx.serialization:kotlinx-serialization-csv:2.0.0"
+
+sqldelight-sqlite = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "sqldelight" }
+
+slf4j-nop = "org.slf4j:slf4j-nop:2.0.13"
+
+[plugins]
+sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }

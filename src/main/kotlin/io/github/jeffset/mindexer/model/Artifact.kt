@@ -12,7 +12,7 @@ data class Artifact(
     /**
      * Maven Artifact ID.
      *
-     * NOTE: For multiplatform artifacts the platform suffix is NOT present here, see [kmpPlatform] for that.
+     * NOTE: For multiplatform artifacts the platform suffix is NOT present here, see [supportedPlatforms] for that.
      */
     val artifactId: String,
 

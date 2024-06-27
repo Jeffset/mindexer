@@ -13,14 +13,14 @@ interface Allowlist {
 
     sealed interface AllowlistEntry {
         /**
-         * An artifact with the specified [name] is allowed.
+         * An artifact with the specified [name] is requested.
          */
         data class Artifact(
             val name: String,
         ) : AllowlistEntry
 
         /**
-         * All artifacts in the group are allowed.
+         * All artifacts in the group are listed and resolved.
          *
          * NOTE: Nested groups are not resolved.
          */

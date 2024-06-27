@@ -12,6 +12,12 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
+/**
+ * Uses [Resolver] to resolve the artifacts in accordance with the requests from the [allowlist].
+ * Stores the results into the [database].
+ *
+ * Single use object. Call [index] to do the work.
+ */
 class Indexer(
     private val allowlist: Allowlist,
     resolveOptions: ResolvingOptions,

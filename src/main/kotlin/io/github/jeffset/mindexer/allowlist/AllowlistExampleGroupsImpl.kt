@@ -2,6 +2,9 @@ package io.github.jeffset.mindexer.allowlist
 
 import io.github.jeffset.mindexer.allowlist.Allowlist.AllowlistEntry.AllInGroup
 
+/**
+ * Default example implementation for [Allowlist] to use when no explicit option is given.
+ */
 object AllowlistExampleGroupsImpl : Allowlist {
     override val allowed: Map<String, List<Allowlist.AllowlistEntry>> = mapOf(
         "io.ktor" to listOf(AllInGroup),

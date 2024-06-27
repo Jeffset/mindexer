@@ -41,7 +41,9 @@ fun run(args: Array<String>) {
             """.trimIndent()
         )
 
-        val indexKmpAllVersions by option(ArgType.Boolean, fullName = "index-kmp-all-versions",
+        val indexKmpAllVersions by option(
+            ArgType.Boolean,
+            fullName = "index-kmp-all-versions",
             description = """
                 Whether to resolve KMP platforms for all versions, not only the latest.
                 Can significantly increase indexing time.

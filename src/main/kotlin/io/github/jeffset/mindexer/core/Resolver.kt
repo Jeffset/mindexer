@@ -27,6 +27,11 @@ private const val ATTRIBUTE_KT_PLATFORM_TYPE = "org.jetbrains.kotlin.platform.ty
 private const val ATTRIBUTE_KT_NATIVE_TARGET = "org.jetbrains.kotlin.native.target"
 private const val MAVEN_CENTRAL_HOST = "repo1.maven.org"
 
+/**
+ * A grouped logic for maven artifact resolution.
+ *
+ * Single use object. Call [resolveAll] to do the work.
+ */
 class Resolver(
     private val allowlist: Allowlist,
     private val options: ResolvingOptions,
@@ -67,6 +72,9 @@ class Resolver(
         }
     }
 
+    /**
+     * As resolution progresses, events are emitted into the [flow][into].
+     */
     suspend fun resolveAll() {
         try {
             coroutineScope {  // Parallel resolution
@@ -154,6 +162,8 @@ class Resolver(
     }
 
     private suspend fun resolveKmpAware(artifact: Artifact) {
+        // Resolve gradle .module metadata file to read the available platforms from the attributes.
+
         val moduleUrl = gradleModuleUrlFor(
             groupId = artifact.groupId,
             artifactName = artifact.artifactId,
@@ -194,7 +204,7 @@ class Resolver(
     private suspend fun resolveAllInGroupScrapingExperimental(
         groupId: String,
     ) {
-        // The groupId might not be a leaf groupId, so every subfolder here we scrape
+        // The groupId might not be a leaf groupId, so every subfolder we scrape here
         // may not be an artifact, but for the sake of time and simplicity we do not handle that
         // here explicitly.
 
@@ -325,6 +335,10 @@ class Resolver(
 // Only for literal dirs, no files, no "../", without trailing '/'
 private val SCRAPE_SUBDIRS_HREF_REGEX = """href="([a-z0-9-/]+)/"""".toRegex()
 
+/**
+ * Quick and dirty: list all possible KMP suffixes.
+ * Only used for group listing(scraping).
+ */
 private val KMP_ARTIFACT_SUFFIXES = buildSet {
     val nativeArch = arrayOf(
         "arm64", "x64", "arm32", "arm64", "arm32hfp", "x86"

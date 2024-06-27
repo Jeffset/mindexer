@@ -5,6 +5,11 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+/**
+ * Buffers the elements of the original flow, emitting them in chunks no larger than [maxCount].
+ * Every emitted chunk will be of [maxCount] size except for the *last* one - it
+ * will contain whatever is left.
+ */
 fun <T> Flow<T>.chunked(
     maxCount: Int
 ) = channelFlow {

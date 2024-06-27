@@ -18,7 +18,7 @@ fun openDatabase(
     return IndexDB(driver, Artifacts.Adapter(ListOfStringsAdapter))
 }
 
-private object ListOfStringsAdapter : ColumnAdapter<List<String>, String> {
+object ListOfStringsAdapter : ColumnAdapter<List<String>, String> {
     override fun decode(databaseValue: String) =
         if (databaseValue.isEmpty()) {
             listOf()

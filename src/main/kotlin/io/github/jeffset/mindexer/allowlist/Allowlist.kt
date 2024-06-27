@@ -16,6 +16,8 @@ interface Allowlist {
 
         /**
          * All artifacts in the group are allowed.
+         *
+         * NOTE: Nested groups are not resolved.
          */
         data object AllInGroup : AllowlistEntry
     }

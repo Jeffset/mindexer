@@ -32,6 +32,7 @@ dependencies {
     implementation(libs.sqldelight.coroutines)
 
     implementation(compose.desktop.currentOs)
+    implementation(libs.filePicker)
 
     runtimeOnly(libs.slf4j.nop)
 

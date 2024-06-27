@@ -1,5 +1,6 @@
 package io.github.jeffset.mindexer
 
+import io.github.jeffset.mindexer.allowlist.AllowlistExampleGroupsImpl
 import io.github.jeffset.mindexer.allowlist.AllowlistFileImpl
 import io.github.jeffset.mindexer.core.Indexer
 import io.github.jeffset.mindexer.core.ResolvingOptions
@@ -10,7 +11,6 @@ import kotlinx.cli.ArgType
 import kotlinx.cli.ExperimentalCli
 import kotlinx.cli.Subcommand
 import kotlinx.cli.default
-import kotlinx.cli.required
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import kotlin.system.exitProcess
@@ -31,9 +31,11 @@ fun run(args: Array<String>) {
             ArgType.String,
             fullName = "artifact-allowlist-file",
             description = """
-                Path to the .csv file with the `namespace,name` header
+                Path to the .csv file with the `namespace,name` header.
+                Defaults to using a trivial predefined list of groups:
+                ${AllowlistExampleGroupsImpl.allowed}
             """.trimIndent()
-        ).required()
+        )
 
         val indexKmpAllVersions by option(ArgType.Boolean, fullName = "index-kmp-all-versions",
             description = """
@@ -45,7 +47,8 @@ fun run(args: Array<String>) {
         override fun execute() {
             runBlocking {
                 Indexer(
-                    allowlist = AllowlistFileImpl(File(artifactAllowlistFile)),
+                    allowlist = artifactAllowlistFile?.let { file -> AllowlistFileImpl(File(file)) }
+                        ?: AllowlistExampleGroupsImpl,
                     resolveOptions = ResolvingOptions(
                         resolveKmpLatestOnly = !indexKmpAllVersions,
                     ),
@@ -72,7 +75,10 @@ fun run(args: Array<String>) {
 
         override fun execute() {
             val db = openDatabase(dropExisting = false)
-            val results = db.indexDBQueries.searchRanked(text).executeAsList()
+            val results = db.indexDBQueries.searchRanked(
+                namePrompt = text,
+                platformPrompt = null,
+            ).executeAsList()
             if (results.isEmpty()) {
                 println("No artifacts match the '$text' prompt")
                 exitProcess(1)

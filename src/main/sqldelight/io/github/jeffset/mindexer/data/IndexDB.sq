@@ -19,12 +19,14 @@ VALUES (?, ?, ?, ?, ?);
 
 searchRanked:
 SELECT *,
-      (+(instr(artifact_id, :name) > 0) * 10000 -- 1) artifact_id contains prompt
-       +(instr(group_id, :name) > 0) * 1000     -- 2) group_id contains prompt
-       -length(artifact_id)                     -- 3) shorter matched strings rank higher,
-       -length(group_id)) AS rank               --    as the "matched ratio" is higher.
+      (+(instr(artifact_id, :namePrompt) > 0) * 10000 -- 1) artifact_id contains prompt
+       +(instr(group_id, :namePrompt) > 0) * 1000     -- 2) group_id contains prompt
+       -length(artifact_id)                           -- 3) shorter matched strings rank higher,
+       -length(group_id)) AS rank                     --    as the "matched ratio" is higher.
 FROM Artifacts
 WHERE rank > 0 AND is_latest
+      AND (:platformPrompt IS NULL
+           OR supported_kmp_platforms LIKE ('%' || :platformPrompt || '%'))
 ORDER BY
     rank DESC,
     version DESC,

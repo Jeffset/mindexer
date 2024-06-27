@@ -8,6 +8,14 @@ import kotlinx.serialization.decodeFromString
 import java.io.File
 import java.io.IOException
 
+/**
+ * Example file:
+ * ```csv
+ * name,namespace
+ * org.kodein.mock,mockmp-test-helper
+ * org.jetbrains.kotlinx,*
+ * ```
+ */
 class AllowlistFileImpl(
     allowlistFile: File,
 ) : Allowlist {

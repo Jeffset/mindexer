@@ -42,7 +42,7 @@ class Indexer(
             }
             resolveEvents
                 .takeWhile { it != ArtifactResolutionEvent.ResolutionFinished }
-                .chunked(maxCount = 64)
+                .chunked(maxCount = 512)
                 .collect { events ->
                     val resolvedArtifacts = arrayListOf<Artifact>()
                     for (event in events) {

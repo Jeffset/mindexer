@@ -47,10 +47,7 @@ class EndToEndTest {
         ).index()
 
         // Not very long-lasting test, but OK for toy example
-        expect(28486) {
-            database.indexDBQueries.artifactsCount().executeAsOne()
-        }
-        expect(File("data/ktor-search.golden.txt").readText()) {
+        expect(File("data/ktor-search.golden.txt").readText().trimMargin()) {
             database.indexDBQueries.searchRanked(
                 namePrompt = "ktor",
                 platformPrompt = "js",

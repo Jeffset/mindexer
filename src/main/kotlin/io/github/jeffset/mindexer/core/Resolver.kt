@@ -199,7 +199,6 @@ class Resolver(
         // here explicitly.
 
         val url = mavenGroupUrlFor(groupId)
-        println(url)
         val response = client.get(url)
         if (response.status == HttpStatusCode.NotFound) {
             // TODO: Say the group is unresolved

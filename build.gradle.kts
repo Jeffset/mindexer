@@ -63,6 +63,8 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "mindexer"
             packageVersion = version.toString()
+
+            modules("java.sql")
         }
     }
 }

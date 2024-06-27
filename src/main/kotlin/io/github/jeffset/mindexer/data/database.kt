@@ -6,16 +6,17 @@ import java.io.File
 
 fun openDatabase(
     dropExisting: Boolean = false,
-): IndexDB {
-    val homePath = File(System.getProperty("user.home")).resolve(".mindexer")
-    homePath.mkdirs()
-    val dbPath = homePath.resolve("index.db")
+): IndexDBHolder {
+    val dbPath = File("index.db")
     if (dropExisting) {
         dbPath.delete()
     }
     val driver = JdbcSqliteDriver("jdbc:sqlite:$dbPath")
     IndexDB.Schema.create(driver)
-    return IndexDB(driver, Artifacts.Adapter(ListOfStringsAdapter))
+    return IndexDBHolder(
+        db = IndexDB(driver, Artifacts.Adapter(ListOfStringsAdapter)),
+        dbFile = dbPath,
+    )
 }
 
 object ListOfStringsAdapter : ColumnAdapter<List<String>, String> {

@@ -10,4 +10,7 @@ object AllowlistExampleGroupsImpl : Allowlist {
         "org.apache.tomcat" to listOf(AllInGroup),
         "com.google.dagger" to listOf(AllInGroup),
     )
+
+    override val description: String
+        get() = "Builtin Sample Groups: $allowed"
 }

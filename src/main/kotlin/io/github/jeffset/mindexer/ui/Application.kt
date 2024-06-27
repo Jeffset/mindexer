@@ -106,7 +106,6 @@ fun App() {
 
     val artifacts: List<SearchRanked> by remember(searchPrompt, platformSearchPrompt) {
         if (searchPrompt.isNotBlank()) {
-            println("New search: $searchPrompt, $platformSearchPrompt")
             db.indexDBQueries.searchRanked(
                 namePrompt = searchPrompt,
                 platformPrompt = platformSearchPrompt.takeIf { it.isNotBlank() },

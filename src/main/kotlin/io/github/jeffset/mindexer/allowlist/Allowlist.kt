@@ -6,6 +6,11 @@ interface Allowlist {
      */
     val allowed: Map<String, List<AllowlistEntry>>
 
+    /**
+     * Allowlist user friendly description.
+     */
+    val description: String
+
     sealed interface AllowlistEntry {
         /**
          * An artifact with the specified [name] is allowed.

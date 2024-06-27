@@ -2,12 +2,15 @@ package io.github.jeffset.mindexer
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import io.github.jeffset.mindexer.allowlist.AllowlistExampleGroupsImpl
+import io.github.jeffset.mindexer.allowlist.AllowlistFileImpl
 import io.github.jeffset.mindexer.core.Indexer
 import io.github.jeffset.mindexer.core.ResolvingOptions
 import io.github.jeffset.mindexer.data.Artifacts
 import io.github.jeffset.mindexer.data.IndexDB
+import io.github.jeffset.mindexer.data.IndexDBHolder
 import io.github.jeffset.mindexer.data.ListOfStringsAdapter
 import kotlinx.coroutines.runBlocking
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.expect
 
@@ -20,13 +23,40 @@ class EndToEndTest {
             resolveOptions = ResolvingOptions(
                 resolveKmpLatestOnly = true,
             ),
-            database = database,
-            logger = VerboseLogger,
+            database = IndexDBHolder(database, File("")),
+            logger = SilentLogger,  // Change to VerboseLogger to debug
         ).index()
 
         // Yeah, until someone publishes an artifact :)
         expect(29174) {
             database.indexDBQueries.artifactsCount().executeAsOne()
+        }
+    }
+
+    @Test
+    fun `test example config`() = runBlocking {
+        val database = openDatabaseForTest()
+
+        Indexer(
+            allowlist = AllowlistFileImpl(File("data/maven-kmp-libraries.csv")),
+            resolveOptions = ResolvingOptions(
+                resolveKmpLatestOnly = true,
+            ),
+            database = IndexDBHolder(database, File("")),
+            logger = SilentLogger,
+        ).index()
+
+        // Not very long-lasting test, but OK for toy example
+        expect(28486) {
+            database.indexDBQueries.artifactsCount().executeAsOne()
+        }
+        expect(File("data/ktor-search.golden.txt").readText()) {
+            database.indexDBQueries.searchRanked(
+                namePrompt = "ktor",
+                platformPrompt = "js",
+            ).executeAsList().joinToString(separator = "\n") {
+                "${it.group_id}:${it.artifact_id}:${it.version}:${it.supported_kmp_platforms}"
+            }
         }
     }
 }

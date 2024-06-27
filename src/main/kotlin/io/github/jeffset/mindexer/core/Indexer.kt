@@ -3,7 +3,7 @@ package io.github.jeffset.mindexer.core
 import io.github.jeffset.mindexer.Logger
 import io.github.jeffset.mindexer.allowlist.Allowlist
 import io.github.jeffset.mindexer.chunked
-import io.github.jeffset.mindexer.data.IndexDB
+import io.github.jeffset.mindexer.data.IndexDBHolder
 import io.github.jeffset.mindexer.model.Artifact
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.coroutineScope
@@ -13,9 +13,9 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
 class Indexer(
-    allowlist: Allowlist,
+    private val allowlist: Allowlist,
     resolveOptions: ResolvingOptions,
-    private val database: IndexDB,
+    private val database: IndexDBHolder,
     private val logger: Logger,
 ) {
     private val resolveEvents = MutableSharedFlow<ArtifactResolutionEvent>()
@@ -30,7 +30,9 @@ class Indexer(
     )
 
     suspend fun index() {
+        val start = System.currentTimeMillis()
         check(!dbExecutor.isShutdown) { "single-use object" }
+        logger.output("Starting indexing using allowlist: ${allowlist.description}")
 
         val dbDispatcher = dbExecutor.asCoroutineDispatcher()
         coroutineScope {
@@ -72,8 +74,12 @@ class Indexer(
                         }
                     }
                 }
-            logger.verbose("Indexing finished")
             dbExecutor.shutdown()
         }
+        val duration = System.currentTimeMillis() - start
+        val seconds = duration / 1000
+        val ms = duration % 1000
+        logger.output("Indexing finished in $seconds sec $ms ms.")
+        logger.output("Index data is saved at ${database.dbFile.absolutePath} and will be used for the 'search' command")
     }
 }

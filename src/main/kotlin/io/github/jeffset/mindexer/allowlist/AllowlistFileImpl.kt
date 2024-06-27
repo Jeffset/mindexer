@@ -21,6 +21,8 @@ class AllowlistFileImpl(
 ) : Allowlist {
     override val allowed: Map<String, List<Allowlist.AllowlistEntry>>
 
+    override val description: String = "Loaded from $allowlistFile"
+
     init {
         check(allowlistFile.isFile) { "$allowlistFile doesn't exist or is not readable" }
 

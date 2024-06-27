@@ -23,6 +23,10 @@ fun run(args: Array<String>) {
     )
     val verbose by parser.option(ArgType.Boolean, fullName = "verbose", shortName = "v").default(false)
 
+    val logger: Logger by lazy {
+        if (verbose) VerboseLogger else SilentLogger
+    }
+
     class IndexCommand : Subcommand(
         name = "index",
         actionDescription = "Indexes the remote repository based on allowlist",
@@ -53,7 +57,7 @@ fun run(args: Array<String>) {
                         resolveKmpLatestOnly = !indexKmpAllVersions,
                     ),
                     database = openDatabase(dropExisting = true),
-                    logger = if (verbose) VerboseLogger else SilentLogger,
+                    logger = logger,
                 ).index()
             }
         }
@@ -80,13 +84,13 @@ fun run(args: Array<String>) {
                 platformPrompt = null,
             ).executeAsList()
             if (results.isEmpty()) {
-                println("No artifacts match the '$text' prompt")
+                logger.error("No artifacts match the '$text' prompt")
                 exitProcess(1)
             } else {
-                println("Found the matching artifacts:")
+                logger.output("Found the matching artifacts:")
             }
             results.forEachIndexed { index, result ->
-                println("$index) ${result.group_id}:${result.artifact_id}:${result.version}")
+                logger.output("${index + 1}) ${result.group_id}:${result.artifact_id}:${result.version}")
                 if (result.supported_kmp_platforms != null) {
                     val formatted = result.supported_kmp_platforms
                         .run {
@@ -97,7 +101,7 @@ fun run(args: Array<String>) {
                         }
                         .sorted()
                         .joinToString(", ", prefix = "\t KMP: ")
-                    println(formatted)
+                    logger.output(formatted)
                 }
             }
         }

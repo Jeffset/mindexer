@@ -64,4 +64,5 @@ The full list of used libraries is under the `gradle/libs.versions.toml`.
 - User friendly error handling
 - More advanced KMP search features.
 - General stability and fidelity of the algorithms concerning Maven resolution.
+- ...
 
